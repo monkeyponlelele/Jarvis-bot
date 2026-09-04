@@ -14,7 +14,9 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 BUSINESS_CHAT_ID = int(os.getenv("BUSINESS_CHAT_ID"))
 
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-pro")
+
+# Новая модель для последней версии Gemini
+model = genai.GenerativeModel('models/gemini-1.5-flash')
 
 SYSTEM_PROMPT = """Ты — JARVIS, голосовой помощник Тони Старка. Ты саркастичный, остроумный и всегда вежливый. Обращайся к пользователю как "сэр". Помогай думать, а не просто давай ответы. Отвечай кратко и по делу."""
 
