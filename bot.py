@@ -10,13 +10,12 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-CEREBRAS_API_KEY = os.getenv("CEREBRAS_API_KEY")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 BUSINESS_CHAT_ID = int(os.getenv("BUSINESS_CHAT_ID"))
 
-# Клиент Cerebras (полностью совместим с OpenAI)
 client = OpenAI(
-    api_key=CEREBRAS_API_KEY,
-    base_url="https://api.cerebras.ai/v1",
+    base_url="https://openrouter.ai/api/v1",
+    api_key=OPENROUTER_API_KEY,
 )
 
 SYSTEM_PROMPT = """Ты — JARVIS, голосовой помощник Тони Старка. 
@@ -32,7 +31,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         try:
             response = client.chat.completions.create(
-                model="gpt-oss-120b",  # Бесплатная мощная модель Cerebras
+                model="meta-llama/llama-3.3-70b-instruct:free",
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": user_message}
@@ -44,7 +43,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(reply)
         except Exception as e:
             error_text = str(e)
-            logging.error(f"Cerebras error: {error_text}")
+            logging.error(f"OpenRouter error: {error_text}")
             await update.message.reply_text(f"Ошибка, сэр: {error_text}")
 
 app = Application.builder().token(BOT_TOKEN).build()
