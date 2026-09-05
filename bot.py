@@ -10,21 +10,14 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+CEREBRAS_API_KEY = os.getenv("CEREBRAS_API_KEY")
 BUSINESS_CHAT_ID = int(os.getenv("BUSINESS_CHAT_ID"))
 
+# Клиент Cerebras (полностью совместим с OpenAI)
 client = OpenAI(
-    base_url="https://openrouter.ai/api/v1",
-    api_key=OPENROUTER_API_KEY,
+    api_key=CEREBRAS_API_KEY,
+    base_url="https://api.cerebras.ai/v1",
 )
-
-# ТОЛЬКО ГАРАНТИРОВАННО БЕСПЛАТНЫЕ МОДЕЛИ
-MODEL_LIST = [
-    "google/gemma-2-9b-it:free",
-    "mistralai/mistral-7b-instruct-v0.3:free",
-    "microsoft/phi-3-mini-128k-instruct:free",
-    "meta-llama/llama-3.2-1b-instruct:free",
-]
 
 SYSTEM_PROMPT = """Ты — JARVIS, голосовой помощник Тони Старка. 
 Ты саркастичный, остроумный и всегда вежливый. 
@@ -37,30 +30,22 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not user_message:
             return
 
-        last_error = None
-
-        for model in MODEL_LIST:
-            try:
-                response = client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": user_message}
-                    ],
-                    max_tokens=500,
-                    temperature=0.7
-                )
-                reply = response.choices[0].message.content.strip()
-                await update.message.reply_text(reply)
-                return
-            except Exception as e:
-                last_error = str(e)
-                logging.warning(f"Model {model} failed: {last_error}")
-                continue
-
-        error_text = f"Все модели временно недоступны, сэр. Последняя ошибка: {last_error}"
-        logging.error(f"All models failed: {last_error}")
-        await update.message.reply_text(f"Ошибка, сэр: {error_text}")
+        try:
+            response = client.chat.completions.create(
+                model="gpt-oss-120b",  # Бесплатная мощная модель Cerebras
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": user_message}
+                ],
+                max_tokens=500,
+                temperature=0.7
+            )
+            reply = response.choices[0].message.content.strip()
+            await update.message.reply_text(reply)
+        except Exception as e:
+            error_text = str(e)
+            logging.error(f"Cerebras error: {error_text}")
+            await update.message.reply_text(f"Ошибка, сэр: {error_text}")
 
 app = Application.builder().token(BOT_TOKEN).build()
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
