@@ -1,8 +1,8 @@
 import os
 import logging
-import requests
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
+from openai import OpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -10,11 +10,24 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-HF_API_KEY = os.getenv("HF_API_KEY")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 BUSINESS_CHAT_ID = int(os.getenv("BUSINESS_CHAT_ID"))
 
-# Модель для диалогов (бесплатная и хорошая)
-MODEL = "microsoft/DialoGPT-medium"
+client = OpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=OPENROUTER_API_KEY,
+)
+
+# Расширенный список бесплатных моделей
+MODEL_LIST = [
+    "google/gemma-7b-it:free",
+    "mistralai/mistral-7b-instruct:free",
+    "microsoft/phi-3.5-mini-128k-instruct:free",
+    "qwen/qwen-2.5-32b-instruct:free",
+    "meta-llama/llama-3.2-3b-instruct:free",
+    "meta-llama/llama-3.1-8b-instruct:free",
+    "nousresearch/hermes-3-llama-3.1-405b:free",
+]
 
 SYSTEM_PROMPT = """Ты — JARVIS, голосовой помощник Тони Старка. 
 Ты саркастичный, остроумный и всегда вежливый. 
@@ -27,37 +40,30 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not user_message:
             return
 
-        try:
-            # Запрос к Hugging Face API
-            headers = {"Authorization": f"Bearer {HF_API_KEY}"}
-            payload = {
-                "inputs": f"{SYSTEM_PROMPT}\n\nUser: {user_message}\nJARVIS:",
-                "parameters": {"max_new_tokens": 150}
-            }
-            
-            response = requests.post(
-                f"https://api-inference.huggingface.co/models/{MODEL}",
-                headers=headers,
-                json=payload,
-                timeout=30
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                # У разных моделей разный формат ответа
-                if isinstance(result, list) and len(result) > 0:
-                    reply = result[0].get("generated_text", "Ошибка, сэр.").strip()
-                else:
-                    reply = str(result)
-            else:
-                reply = f"Ошибка API: {response.status_code} - {response.text}"
+        last_error = None
 
-        except Exception as e:
-            error_text = str(e)
-            logging.error(f"Hugging Face error: {error_text}")
-            reply = f"Ошибка, сэр: {error_text}"
+        for model in MODEL_LIST:
+            try:
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": user_message}
+                    ],
+                    max_tokens=500,
+                    temperature=0.7
+                )
+                reply = response.choices[0].message.content.strip()
+                await update.message.reply_text(reply)
+                return
+            except Exception as e:
+                last_error = str(e)
+                logging.warning(f"Model {model} failed: {last_error}")
+                continue
 
-        await update.message.reply_text(reply)
+        error_text = f"Все модели временно недоступны, сэр. Последняя ошибка: {last_error}"
+        logging.error(f"All models failed: {last_error}")
+        await update.message.reply_text(f"Ошибка, сэр: {error_text}")
 
 app = Application.builder().token(BOT_TOKEN).build()
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
