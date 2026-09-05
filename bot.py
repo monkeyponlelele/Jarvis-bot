@@ -18,12 +18,12 @@ client = OpenAI(
     api_key=OPENROUTER_API_KEY,
 )
 
-# ТОЛЬКО БЕСПЛАТНЫЕ МОДЕЛИ (без платных альтернатив)
+# ТОЛЬКО ГАРАНТИРОВАННО БЕСПЛАТНЫЕ МОДЕЛИ
 MODEL_LIST = [
     "google/gemma-2-9b-it:free",
     "mistralai/mistral-7b-instruct-v0.3:free",
     "microsoft/phi-3-mini-128k-instruct:free",
-    "qwen/qwen-2.5-7b-instruct:free",
+    "meta-llama/llama-3.2-1b-instruct:free",
 ]
 
 SYSTEM_PROMPT = """Ты — JARVIS, голосовой помощник Тони Старка. 
