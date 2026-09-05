@@ -2,7 +2,7 @@ import os
 import logging
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
-import google.generativeai as genai
+import openai
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -10,28 +10,32 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 BUSINESS_CHAT_ID = int(os.getenv("BUSINESS_CHAT_ID"))
 
-genai.configure(api_key=GEMINI_API_KEY)
-
-# Новая модель для последней версии Gemini
-model = genai.GenerativeModel('gemini-1.5-flash')
+openai.api_key = OPENAI_API_KEY
 
 SYSTEM_PROMPT = """Ты — JARVIS, голосовой помощник Тони Старка. Ты саркастичный, остроумный и всегда вежливый. Обращайся к пользователю как "сэр". Помогай думать, а не просто давай ответы. Отвечай кратко и по делу."""
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.chat_id == BUSINESS_CHAT_ID:
         user_message = update.message.text
         if not user_message:
             return
 
-        full_prompt = f"{SYSTEM_PROMPT}\n\nUser: {user_message}\nJARVIS:"
-
         try:
-            response = model.generate_content(full_prompt)
-            reply = response.text.strip()
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": user_message}
+                ],
+                max_tokens=500,
+                temperature=0.7
+            )
+            reply = response.choices[0].message.content.strip()
         except Exception as e:
-            logging.error(f"Gemini error: {e}")
+            logging.error(f"OpenAI error: {e}")
             reply = "Произошла ошибка, сэр. Попробуйте еще раз."
 
         await update.message.reply_text(reply)
