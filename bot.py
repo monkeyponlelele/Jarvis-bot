@@ -19,6 +19,15 @@ client = OpenAI(
     api_key=OPENROUTER_API_KEY,
 )
 
+# Список бесплатных моделей (по порядку)
+FREE_MODELS = [
+    "google/gemma-7b-it:free",
+    "mistralai/mistral-7b-instruct:free",
+    "microsoft/phi-3.5-mini-128k-instruct:free",
+    "qwen/qwen-2.5-32b-instruct:free",
+    "meta-llama/llama-3.2-3b-instruct:free",
+]
+
 SYSTEM_PROMPT = """Ты — JARVIS, голосовой помощник Тони Старка. 
 Ты саркастичный, остроумный и всегда вежливый. 
 Обращайся к пользователю как "сэр". 
@@ -31,23 +40,32 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not user_message:
             return
 
-        try:
-            response = client.chat.completions.create(
-                model="meta-llama/llama-3.3-70b-instruct:free",
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": user_message}
-                ],
-                max_tokens=500,
-                temperature=0.7
-            )
-            reply = response.choices[0].message.content.strip()
-        except Exception as e:
-            error_text = str(e)
-            logging.error(f"OpenRouter error: {error_text}")
-            reply = f"Ошибка, сэр: {error_text}"
+        last_error = None
+        
+        # Пробуем каждую модель по очереди
+        for model in FREE_MODELS:
+            try:
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": user_message}
+                    ],
+                    max_tokens=500,
+                    temperature=0.7
+                )
+                reply = response.choices[0].message.content.strip()
+                await update.message.reply_text(reply)
+                return  # Если ответ получен — выходим
+            except Exception as e:
+                last_error = str(e)
+                logging.warning(f"Model {model} failed: {last_error}")
+                continue  # Пробуем следующую модель
 
-        await update.message.reply_text(reply)
+        # Если все модели не сработали
+        error_text = f"Все модели временно недоступны, сэр. Последняя ошибка: {last_error}"
+        logging.error(f"All models failed: {last_error}")
+        await update.message.reply_text(f"Ошибка, сэр: {error_text}")
 
 app = Application.builder().token(BOT_TOKEN).build()
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
