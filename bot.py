@@ -10,13 +10,13 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 BUSINESS_CHAT_ID = int(os.getenv("BUSINESS_CHAT_ID"))
 
-# Инициализация клиента DeepSeek (совместим с OpenAI API)
+# Инициализация клиента OpenRouter
 client = OpenAI(
-    api_key=DEEPSEEK_API_KEY,
-    base_url="https://api.deepseek.com/v1"
+    base_url="https://openrouter.ai/api/v1",
+    api_key=OPENROUTER_API_KEY,
 )
 
 SYSTEM_PROMPT = """Ты — JARVIS, голосовой помощник Тони Старка. 
@@ -33,7 +33,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         try:
             response = client.chat.completions.create(
-                model="deepseek-chat",
+                model="meta-llama/llama-3.3-70b-instruct:free",
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": user_message}
@@ -44,7 +44,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply = response.choices[0].message.content.strip()
         except Exception as e:
             error_text = str(e)
-            logging.error(f"DeepSeek error: {error_text}")
+            logging.error(f"OpenRouter error: {error_text}")
             reply = f"Ошибка, сэр: {error_text}"
 
         await update.message.reply_text(reply)
